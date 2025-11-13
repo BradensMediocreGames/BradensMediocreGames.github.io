@@ -742,6 +742,56 @@ const Engine = (function () {
 				});
 			},
 
+			startGame: function (override) {
+				this.config.update(override);
+				// Prefer user-selected .pck file instead of automatically fetching the default.
+				const exe = this.config.executable;
+				const defaultPack = this.config.mainPack || `${exe}.pck`;
+				// Helpcaner: prompt the user to choose a .pck file. Resolves with {buffer, name}.
+				function promptForPck() {
+					return new Promise(function (resolve, reject) {
+						let input = document.getElementById('pckFileInput');
+						if (!input) {
+							input = document.createElement('input');
+							input.type = 'file';
+							input.accept = '.pck,application/octet-stream';
+							input.id = 'pckFileInput';
+							input.style.display = 'none';
+							document.body.appendChild(input);
+						}
+						input.onchange = function () {
+							const file = input.files && input.files[0];
+							if (!file) {
+								reject(new Error('No file selected'));
+								return;
+							}
+							const reader = new FileReader();
+							reader.onload = function (evt) {
+								resolve({ buffer: evt.target.result, name: file.name });
+							};
+							reader.onerror = function (err) { reject(err); };
+							reader.readAsArrayBuffer(file);
+						};
+						// Trigger file picker
+						input.click();
+					});
+				}
+
+				// Build args and preload based on user selection
+				const me = this;
+				return promptForPck().then(function (result) {
+					const packName = result.name || defaultPack;
+					me.config.args = ['--main-pack', packName].concat(me.config.args);
+					// Initialize engine and preload the selected buffer as the pack file path
+					return Promise.all([
+						me.init(exe),
+						me.preloadFile(result.buffer, packName),
+					]);
+				}).then(function () {
+					return me.start.apply(me);
+				});
+			},
+
 			/**
 			 * Create a file at the specified ``path`` with the passed as ``buffer`` in the instance's file system.
 			 *
@@ -793,4 +843,63 @@ const Engine = (function () {
 }());
 if (typeof window !== 'undefined') {
 	window['Engine'] = Engine;
+}
+
+if (typeof window !== 'undefined') {
+	(function () {
+		function init() {
+			if (!document.body) return;
+			let input = document.getElementById('pckFileInput');
+			if (!input) {
+				input = document.createElement('input');
+				input.type = 'file';
+				input.accept = '.pck,application/octet-stream';
+				input.id = 'pckFileInput';
+				input.style.display = 'none';
+				document.body.appendChild(input);
+			}
+
+			input.addEventListener('change', function (e) {
+				const file = input.files && input.files[0];
+				if (!file) {
+					return;
+				}
+				const reader = new FileReader();
+				reader.onload = function (evt) {
+					const detail = { buffer: evt.target.result, name: file.name, file: file };
+					try {
+						window.dispatchEvent(new CustomEvent('pck-file-import', { detail: detail }));
+					} catch (err) {
+						const ev = document.createEvent('CustomEvent');
+						ev.initCustomEvent('pck-file-import', true, true, detail);
+						window.dispatchEvent(ev);
+					}
+				};
+				reader.readAsArrayBuffer(file);
+			});
+
+			if (!document.getElementById('pckImportButton')) {
+				const btn = document.createElement('button');
+				btn.id = 'pckImportButton';
+				btn.type = 'button';
+				btn.textContent = 'Import .pck';
+				btn.style.position = 'fixed';
+				btn.style.right = '10px';
+				btn.style.top = '10px';
+				btn.style.zIndex = 10000;
+				btn.style.padding = '6px 10px';
+				btn.style.fontSize = '14px';
+				btn.addEventListener('click', function () {
+					input.click();
+				});
+				document.body.appendChild(btn);
+			}
+		}
+
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', init);
+		} else {
+			init();
+		}
+	}());
 }
