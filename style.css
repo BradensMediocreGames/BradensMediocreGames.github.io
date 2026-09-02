@@ -1,0 +1,44 @@
+.dropdown {
+    color: #A897C5;
+    z-index: -1;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #A897C5;
+    min-width: 130px;
+    max-width: 640px;
+    padding: 12px 16px;
+    color: #171726;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+body {
+  background-color: #171726;
+  font-family: "Valley Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+}
+
+h1 {
+    color: #A897C5;
+}
+
+p {
+    color: #A897C5;
+}
+
+a {
+    color: #BD72A7;
+}
+
+hr {
+  border: none;
+  height: 2px;
+  background-color: #5F5676;
+}
